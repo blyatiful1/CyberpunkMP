@@ -49,7 +49,10 @@ RED4EXT_C_EXPORT bool Main(RED4ext::PluginHandle aHandle, RED4ext::EMainReason a
     {
         Initialize();
 
-        App::GApplication = MakeUnique<App::Application>(aHandle, aSdk);
+        // Qualified: aHandle/aSdk are RED4ext types, so ADL also finds the 2.31
+        // SDK's new RED4ext::MakeUnique (Memory/UniquePtr.hpp) — same ambiguity
+        // class as RpcPack.cpp; ::MakeUnique is the project's Stl.h overload.
+        App::GApplication = ::MakeUnique<App::Application>(aHandle, aSdk);
         App::GApplication->Bootstrap();
 
         const auto scriptPath = GCyberpunkMpLocation / TP_REDSCRIPT_LOCATION;

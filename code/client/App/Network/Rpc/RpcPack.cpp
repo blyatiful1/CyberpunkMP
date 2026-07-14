@@ -218,39 +218,39 @@ UniquePtr<BaseArgumentPack> MakePack(Red::CBaseRTTIType* type)
     static auto s_stringType = Red::ResolveType<Red::CString>();
 
     if (type->GetType() == Red::ERTTIType::Class)
-        return MakeUnique<ClassArgumentPack>(type);
+        return ::MakeUnique<ClassArgumentPack>(type);
     if (type->GetType() == Red::ERTTIType::Array)
-        return MakeUnique<ArrayArgumentPack>(type);
+        return ::MakeUnique<ArrayArgumentPack>(type);
     if (type->GetType() == Red::ERTTIType::Enum)
-        return MakeUnique<EnumArgumentPack>(type);
+        return ::MakeUnique<EnumArgumentPack>(type);
     if (type == s_floatType)
-        return MakeUnique<FloatArgumentPack>(type);
+        return ::MakeUnique<FloatArgumentPack>(type);
     if (type == s_boolType)
-        return MakeUnique<BoolArgumentPack>(type);
+        return ::MakeUnique<BoolArgumentPack>(type);
     if (type == s_int8Type)
-        return MakeUnique<Int8ArgumentPack>(type);
+        return ::MakeUnique<Int8ArgumentPack>(type);
     if (type == s_uint8Type)
-        return MakeUnique<Uint8ArgumentPack>(type);
+        return ::MakeUnique<Uint8ArgumentPack>(type);
     if (type == s_int16Type)
-        return MakeUnique<Int16ArgumentPack>(type);
+        return ::MakeUnique<Int16ArgumentPack>(type);
     if (type == s_uint16Type)
-        return MakeUnique<Uint16ArgumentPack>(type);
+        return ::MakeUnique<Uint16ArgumentPack>(type);
     if (type == s_int32Type)
-        return MakeUnique<Int32ArgumentPack>(type);
+        return ::MakeUnique<Int32ArgumentPack>(type);
     if (type == s_uint32Type)
-        return MakeUnique<Uint32ArgumentPack>(type);
+        return ::MakeUnique<Uint32ArgumentPack>(type);
     if (type == s_int64Type)
-        return MakeUnique<Int64ArgumentPack>(type);
+        return ::MakeUnique<Int64ArgumentPack>(type);
     if (type == s_uint64Type)
-        return MakeUnique<Uint64ArgumentPack>(type);
+        return ::MakeUnique<Uint64ArgumentPack>(type);
     if (type == s_nameType)
-        return MakeUnique<CNamePack>(type);
+        return ::MakeUnique<CNamePack>(type);
     if (type == s_tdbidType)
-        return MakeUnique<TWeakDBIDPack>(type);
+        return ::MakeUnique<TWeakDBIDPack>(type);
     if (type == s_doubleType)
-        return MakeUnique<DoubleArgumentPack>(type);
+        return ::MakeUnique<DoubleArgumentPack>(type);
     if (type == s_stringType)
-        return MakeUnique<StringPack>(type);
+        return ::MakeUnique<StringPack>(type);
 
     return {};
 }
