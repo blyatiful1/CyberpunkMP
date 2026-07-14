@@ -25,7 +25,14 @@ World::World(const FlecsConfig& acFlecsConfig)
     {
         set<flecs::Rest>({
             .port = acFlecsConfig.GetPort(),
-            .ipaddr = const_cast<char*>(acFlecsConfig.GetIpAddress()),
+            // flecs takes ownership of EcsRest::ipaddr and releases it with
+            // ecs_os_free() from the component destructor during ecs_fini (world
+            // teardown). The previous const_cast<char*>(...c_str()) handed flecs a
+            // pointer into a std::string's internal buffer, so teardown called
+            // free() on memory glibc never allocated -> "free(): invalid size"
+            // SIGABRT at shutdown. Give flecs its own heap copy from the matching
+            // allocator (ecs_os_strdup pairs with ecs_os_free).
+            .ipaddr = ecs_os_strdup(acFlecsConfig.GetIpAddress()),
             .impl = nullptr
         });
         spdlog::info("Running Flecs REST API on {}:{}", acFlecsConfig.IpAddress, acFlecsConfig.Port);

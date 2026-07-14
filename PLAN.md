@@ -103,11 +103,14 @@ Plan reviewed by plan-critic (2026-07-12): PROCEED-WITH-FIXES — all fixes fold
 - **M1a+M2 green 2026-07-14** (see milestones). Server self-creates config/ (server.json Port=11778).
   Commit d8e1217 pushed (netpack + D3D12MemAlloc includedir + Launcher strip + scripting dotnet fixes
   + xmake_local_packages.lua).
-- **KNOWN ISSUE (post-milestone): shutdown heap corruption** — gdb-verified path: on SIGTERM CoreCLR
-  calls libc exit() → atexit/static-dtor chain runs ServerAPI::Exit → ~GameServer → ~World (flecs
-  teardown) during runtime shutdown (other threads possibly still live) → free(): invalid size +
-  SIGABRT core. Only on exit, after a clean sustained run. Fix later (explicit ordered shutdown
-  before exit instead of exit-time destructors).
+- **FIXED (wf_b5575164-da5, 2026-07-14): shutdown heap corruption.** TWO compounding defects:
+  (1) real invalid-free: World.cpp handed flecs REST `.ipaddr = const_cast<char*>(string.c_str())`;
+  flecs OWNS ipaddr and ecs_os_free()s it at ecs_fini → freeing a std::string buffer. Fix:
+  ecs_os_strdup (matched allocator pair). (2) ordering: Run() had no signal handling; CoreCLR's
+  SIGTERM handler called exit() from a foreign thread mid-progress(). Fix: async-signal-safe
+  atomic flag + SIGTERM/SIGINT handlers, loop exits normally, Kill() before World teardown.
+  Empirical gate: 2× boot→SIGTERM cycles, exit 0, coredump count unchanged, orderly log.
+  (Signal fix alone still aborted — that intermediate run is what isolated the ipaddr bug.)
 - **Debug recipe:** managed exceptions crossing reverse-P/Invoke die as opaque PAL_SEHException +
   terminate on .NET 9; rerun with DOTNET_LegacyExceptionHandling=1 to get the real C# stack printed.
 - **Windows CI scoped to client chain (2026-07-14):** `xmake -y Client Archives Inputs Tweaks redscript`.
@@ -127,7 +130,10 @@ Plan reviewed by plan-critic (2026-07-12): PROCEED-WITH-FIXES — all fixes fold
 - **Redscript gate (same wf): GREEN** — all 28 .reds compile against the user's real 2.31a final.redscripts
   + Codeware v1.20.3 via scc.exe v0.5.31 under wine. Zero method-wrap drift. Gate recipe in
   ~/cp2077-audit/redscript-gate.md (gotcha: -compile's SCRIPT_PATH only derives r6_dir; use -compilePathsFile).
-- **Runtime stack staged + sha256-verified** (58 files): ~/cp2077-runtime-staging/staged/ with MANIFEST.md.
+- **Runtime stack staged + sha256-verified** (58 files): ~/cp2077-runtime-staging/staged/.
+  ⚠ 2026-07-14: MANIFEST.md is GONE (probably lived in /tmp); the 58 files + layout are intact
+  (verified). Before the M3 install, re-hash against the upstream release archives in
+  ~/cp2077-runtime-staging/downloads/ instead of trusting the missing manifest.
   Layout corrections vs research: Codeware scripts live in red4ext/plugins/Codeware/Scripts (not r6/scripts);
   Input Loader xmls → r6/cache/*.xml + engine/config/platform/pc/input_loader.ini (not r6/inputs).
 - **CI baseline (run 29209014800): all third-party packages now build on windows-latest** (xmake 3.0.9,

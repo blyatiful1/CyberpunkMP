@@ -1,5 +1,8 @@
 #include "GameServer.h"
 
+#include <atomic>
+#include <csignal>
+
 #include <Components/PlayerComponent.h>
 
 #include "Core/Filesystem.h"
@@ -13,6 +16,18 @@
 using nlohmann::json;
 
 GameServer* GServer = nullptr;
+
+namespace
+{
+// Set from the SIGTERM/SIGINT handler below. It is a lock-free atomic so the
+// handler stays async-signal-safe: the only thing it may touch is this flag.
+std::atomic_bool g_shutdownRequested{false};
+
+void HandleShutdownSignal(int) noexcept
+{
+    g_shutdownRequested.store(true, std::memory_order_relaxed);
+}
+} // namespace
 
 GameServer::GameServer()
     : Server(client::kIdentifier, server::kIdentifier)
@@ -77,8 +92,26 @@ void GameServer::Kill()
 
 void GameServer::Run()
 {
-    while (m_run && IsListening())
+    // Take SIGTERM/SIGINT away from the CoreCLR host. The runtime's default
+    // handler calls libc exit() straight from the signal context; that fires the
+    // atexit chain (ServerAPI::Exit -> ~GameServer -> ~World / ecs_fini) on a
+    // foreign thread while THIS main thread is still inside progress()/RunCallbacks(),
+    // and while the flecs REST + GameNetworkingSockets worker threads are live.
+    // The concurrent flecs teardown corrupts the heap -> "free(): invalid size"
+    // -> SIGABRT at exit. Instead we merely raise a flag so this loop returns
+    // normally; the ordered teardown then runs on this (main) thread via the
+    // managed Main's finally -> ServerAPI::Exit, with every subsystem still healthy.
+    std::signal(SIGTERM, &HandleShutdownSignal);
+    std::signal(SIGINT, &HandleShutdownSignal);
+
+    while (m_run && IsListening() && !g_shutdownRequested.load(std::memory_order_relaxed))
         Update();
+
+    spdlog::info("Shutdown requested, stopping server loop");
+
+    // Stop the network layer up front (idempotent with ~Server::Close) so no
+    // GNS callback can re-enter the World once we start destroying it.
+    Kill();
 }
 
 void GameServer::OnUpdate()
