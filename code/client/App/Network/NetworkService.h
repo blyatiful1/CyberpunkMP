@@ -40,7 +40,9 @@ struct NetworkService final
 
         static_assert(NetworkMessage<MessageType>, "Handler should take a NetworkMessage as first parameter!");
 
-        return m_dispatcher.sink<PacketEvent<MessageType>>().connect<Func>(std::forward<T>(args)...);
+        // .template is required by conformant two-phase lookup (the sink's type is
+        // dependent); MSVC accepts both spellings, clang/std require the keyword.
+        return m_dispatcher.sink<PacketEvent<MessageType>>().template connect<Func>(std::forward<T>(args)...);
     }
 
     entt::dispatcher& GetDispatcher() { return m_dispatcher; }

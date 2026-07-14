@@ -35,7 +35,7 @@ struct Allocator
     template<class T>
     [[nodiscard]] T* New() noexcept
     {
-        static_assert(alignof(T) <= alignof(details::default_align_t));
+        static_assert(alignof(T) <= alignof(::details::default_align_t));
 
         auto pData = static_cast<T*>(Allocate(sizeof(T)));
         if (pData)
@@ -51,7 +51,7 @@ struct Allocator
     {
         using TUnderlyingType = std::remove_all_extents_t<T>;
 
-        static_assert(alignof(T) <= alignof(details::default_align_t));
+        static_assert(alignof(T) <= alignof(::details::default_align_t));
 
         const auto pData = static_cast<uint8_t*>(Allocate(sizeof(TUnderlyingType) * aCount + sizeof(TArraySizePrefix)));
         *reinterpret_cast<TArraySizePrefix*>(pData) = aCount;
@@ -70,7 +70,7 @@ struct Allocator
     template<class T, std::enable_if_t<!std::is_array_v<T>>* = nullptr, class... Args>
     [[nodiscard]] T* New(Args&&... args) noexcept
     {
-        static_assert(alignof(T) <= alignof(details::default_align_t));
+        static_assert(alignof(T) <= alignof(::details::default_align_t));
 
         auto pData = static_cast<T*>(Allocate(sizeof(T)));
         if (pData)
@@ -86,7 +86,7 @@ struct Allocator
     {
         using TUnderlyingType = std::remove_all_extents_t<T>;
 
-        static_assert(alignof(T) <= alignof(details::default_align_t));
+        static_assert(alignof(T) <= alignof(::details::default_align_t));
 
         const auto pData = static_cast<uint8_t*>(Allocate(sizeof(TUnderlyingType) * aCount + sizeof(TArraySizePrefix)));
         *reinterpret_cast<TArraySizePrefix*>(pData) = aCount;
@@ -168,7 +168,7 @@ private:
 template<class T>
 [[nodiscard]] auto New() noexcept
 {
-    if constexpr (details::has_allocator<std::remove_all_extents_t<T>>)
+    if constexpr (::details::has_allocator<std::remove_all_extents_t<T>>)
         return Allocator::Get()->New<T>();
     else
         return Allocator::GetDefault()->New<T>();
@@ -177,7 +177,7 @@ template<class T>
 template<class T, class... Args>
 [[nodiscard]] auto New(Args&&... args) noexcept
 {
-    if constexpr (details::has_allocator<std::remove_all_extents_t<T>>)
+    if constexpr (::details::has_allocator<std::remove_all_extents_t<T>>)
         return Allocator::Get()->New<T>(std::forward<Args>(args)...);
     else
         return Allocator::GetDefault()->New<T>(std::forward<Args>(args)...);
@@ -186,7 +186,7 @@ template<class T, class... Args>
 template<class T, std::enable_if_t<!std::is_array_v<T>>* = nullptr>
 void Delete(T* apEntry) noexcept
 {
-    if constexpr (details::has_allocator<T>)
+    if constexpr (::details::has_allocator<T>)
     {
         apEntry->GetAllocator()->Delete(apEntry);
     }
@@ -199,7 +199,7 @@ void Delete(T* apEntry) noexcept
 template<class T, std::enable_if_t<std::is_array_v<T>>* = nullptr>
 void Delete(T apEntry) noexcept
 {
-    if constexpr (details::has_allocator<std::remove_all_extents_t<T>>)
+    if constexpr (::details::has_allocator<std::remove_all_extents_t<T>>)
     {
         apEntry->GetAllocator()->template Delete<T>(apEntry);
     }

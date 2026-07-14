@@ -343,7 +343,9 @@ public:
                 if constexpr (Traits::IsOriginal)
                 {
                     using Instance = HookInstance<Raw>;
-                    Instance::Enqueue([aArgs]() { s_callback(std::forward<TArgs>(aArgs)...); });
+                    // Pack captures require expansion ([aArgs...]) in conformant C++;
+                    // mutable so the deferred call can still forward/move the copies.
+                    Instance::Enqueue([aArgs...]() mutable { s_callback(std::forward<TArgs>(aArgs)...); });
                 }
             }
             else if constexpr (TFlow == HookFlow::Original)

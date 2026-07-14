@@ -64,7 +64,12 @@ Plan reviewed by plan-critic (2026-07-12): PROCEED-WITH-FIXES — all fixes fold
 - [x] M0  Toolchain: user-local xmake 3.0.9 + dotnet 9.0.315 (pacman blocked on sudo password).
 - [x] M1a Server builds on Linux — 2026-07-14: `xmake build -y Server.Loader` exit 0 twice (34s full/6s
         incremental); artifacts: Server.Loader apphost + libServer.Native.so 3.8MB + CyberpunkSdk.dll.
-- [ ] M1b Client builds in fork CI with ported SDK → artifact downloadable (launcher stripped from xpack).
+- [x] M1b Client builds in fork CI with ported SDK — 2026-07-14 run 29355615364 (commit 656e743) GREEN;
+        Artifacts.zip (2.6MB, 32 files) downloaded + inspected: mod/CyberpunkMP.dll 4.2MB +
+        CyberpunkMP.archive + Inputs + 20 .reds files, launcher-free layout. CI error classes fixed
+        along the way: entEntity renames (14 sites), MakeUnique ADL vs new SDK overloads (18 sites),
+        IPlacedComponent incomplete type (PCH), SDK AddressResolverOverride clobber, D3D12MemAlloc
+        includedir, xmake single-target CLI grammar.
 - [x] M2  Server boots + listens locally — 2026-07-14: sustained ≥20s, ss shows udp *:11778 (game) +
         tcp *:11778 (WebApi admin) + tcp 127.0.0.1:27750 (flecs REST); log ~/cp2077-audit/session-state/
         server-boot-m2.log. LAUNCH ENV REQUIRED: DOTNET_ROLL_FORWARD=LatestMajor +
