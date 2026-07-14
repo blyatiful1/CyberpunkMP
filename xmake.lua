@@ -8,6 +8,10 @@ add_cxflags("-fPIC")
 set_languages("c99", "cxx20")
 add_configfiles("BuildInfo.h.in")
 
+-- local package recipe overrides (see file for rationale); must be included
+-- before add_requires() so the override takes precedence over xmake-repo.
+includes("xmake_local_packages.lua")
+
 add_requires(
     "mimalloc 2.1.7",
     "spdlog",
@@ -64,7 +68,10 @@ option("rpcdir")
 if is_plat("windows") then
     includes("code/assets")
     includes("code/client")
-    includes("code/launcher")
+    -- code/launcher (Overwolf-Electron launcher) intentionally not built: two years
+    -- stale, pnpm/Electron toolchain rot, and useless for the Linux/Proton target.
+    -- The xpack artifact ships the Client DLL + assets directly (installed into
+    -- distrib/launcher by the Client/Assets on_install rules).
     includes("code/loader")
     includes("vendor/")
 

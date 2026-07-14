@@ -18,13 +18,16 @@ std::string GetType(const google::protobuf::FieldDescriptor* field)
     {
         name = google::protobuf::compiler::cpp::ClassName(field->message_type());
         if (field->message_type()->file()->package() != field->file()->package())
-            name = field->message_type()->file()->package() + "::" + name;
+            // Newer protobuf (35.x) has FileDescriptor::package() return std::string_view
+            // instead of const std::string&, which has no operator+ with a const char[];
+            // explicit std::string(...) restores the old implicit-concatenation behavior.
+            name = std::string(field->message_type()->file()->package()) + "::" + name;
     }
     else if (type == google::protobuf::FieldDescriptor::TYPE_ENUM)
     {
         name = google::protobuf::compiler::cpp::ClassName(field->enum_type());
         if (field->message_type()->file()->package() != field->file()->package())
-            name = field->message_type()->file()->package() + "::" + name;
+            name = std::string(field->message_type()->file()->package()) + "::" + name;
     }
     else
     {
@@ -133,7 +136,10 @@ std::string HashProtocol(const google::protobuf::FileDescriptor* apFile, Context
 
         for (auto field : msg.optimized_order)
         {
-            out << "field_" << GetType(field) << "-" << cpp::FieldName(field) << "_" << field->is_optional() << ".";
+            // protobuf 31+ removed FieldDescriptor::is_optional() (label() == LABEL_OPTIONAL).
+            // All of code/protocol/*.proto is proto3 with no map fields, where every
+            // singular field carries LABEL_OPTIONAL, so !is_repeated() is exactly equivalent.
+            out << "field_" << GetType(field) << "-" << cpp::FieldName(field) << "_" << !field->is_repeated() << ".";
         }
     }
 
@@ -835,7 +841,7 @@ int main(int argc, char** argv)
                     msg.reliable = false;
                     continue;
                 }
-                if (field->is_optional())
+                if (!field->is_repeated()) // was is_optional(); see equivalence note in HashProtocol
                     msg.optional_fields.push_back(field);
 
                 if (!field->real_containing_oneof())

@@ -2,7 +2,7 @@ add_requires("cxxopts")
 
 target("NetPack")
     set_kind("binary")
-    add_files("**.cpp", "**.cc")
+    add_files("**.cpp")
     set_group("Tools")
     add_headerfiles("**.h", "**.hpp", "**.inl")
     set_policy("build.across_targets_in_parallel", false)
