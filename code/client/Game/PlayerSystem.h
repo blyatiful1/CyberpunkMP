@@ -3,14 +3,13 @@
 
 namespace Game
 {
+// 2.31a exe audit: the hand-declared vtable slots below drifted. The 6 filler
+// stubs mislaid GetLocalPlayerControlledGameObject at vtable+0x138 instead of the
+// RE'd +0x1E0 (the SDK base vtable ends at 0x100 and the required 0x108..0x1A8
+// filler virtuals were missing), so a raw virtual dispatch invoked the wrong
+// method (ctd-on-first-use). Callers now use Red::CallVirtual(...) name dispatch,
+// so the fake virtuals are removed entirely.
 struct PlayerSystem : Red::PlayerSystem
 {
-    virtual void sub_1B0(); // 1B0
-    virtual void sub_1B8(); // 1B8
-    virtual void sub_1C0(); // 1C0
-    virtual void sub_1C8(); // 1C8
-    virtual void sub_1D0(); // 1D0
-    virtual void sub_1D8(); // 1D8
-    virtual void GetLocalPlayerControlledGameObject(Red::Handle<Red::GameObject>& aObject); // 1E0
 };
 }

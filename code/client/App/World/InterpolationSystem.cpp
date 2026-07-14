@@ -207,8 +207,37 @@ void (*RealIdleController_SetAnimation)(Game::Controller*, AnimationData&);
 void HookIdleController_SetAnimation(Game::Controller* apController, AnimationData& data)
 {
     auto* pMoveComponent = apController->MoveComponent;
-    Game::EntityPtr entity(pMoveComponent);
-    if (const auto pOwner = Red::Cast<Red::GameObject>(entity.GetValuePtr()))
+
+    // 2.31a exe audit: ent::IComponent::owner is at moveComponent+0x50
+    // (reflection-verified), NOT +0x90 as the legacy Game::EntityPtr assumed.
+    // Reading the drifted +0x90 hands Red::Cast a wild pointer and CTDs on the
+    // GetType() vcall. Read the real owner at +0x50.
+    auto* pOwnerEntity = *reinterpret_cast<Red::Entity**>(
+        reinterpret_cast<uintptr_t>(pMoveComponent) + 0x50);
+
+    // Drift probe: keep the legacy +0x90 read only to log divergence.
+    auto* pLegacy90 = Game::EntityPtr(pMoveComponent).GetValuePtr();
+    if (pOwnerEntity != pLegacy90)
+        spdlog::error("[SetAnimation] moveComponent owner drift: owner@0x50={} legacy@0x90={}",
+                      (void*)pOwnerEntity, (void*)pLegacy90);
+
+    // Pre-vcall sanity: non-null, 8-byte aligned, and its vtable lands inside the
+    // game module, so Red::Cast's GetType() vcall cannot fault on a bogus pointer.
+    auto vtable_in_module = [](void* p)
+    {
+        if (!p || (reinterpret_cast<uintptr_t>(p) & 7))
+            return false;
+        auto vt = *reinterpret_cast<uintptr_t*>(p);
+        static const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+        return vt >= base && vt < base + 0x5000000; // < SizeOfImage (0x4EFC000)
+    };
+    if (!vtable_in_module(pOwnerEntity))
+    {
+        RealIdleController_SetAnimation(apController, data); // bail; don't vcall a wild ptr
+        return;
+    }
+
+    if (const auto pOwner = Red::Cast<Red::GameObject>(pOwnerEntity))
     {
         if (pOwner->tags.Contains("CyberpunkMP.Puppet"))
         {

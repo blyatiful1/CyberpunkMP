@@ -74,7 +74,23 @@ constexpr auto ScheduleSynchronizedAppearanceChanges = Core::RawFunc<386815609UL
 
 // could use game::ui::CharacterCustomizationState::Serialize to pass data to server
 
-inline Handle<game::ui::CharacterCustomizationState> * GetCustomizationState(game::ui::CharacterCustomizationSystem * self) 
+inline Handle<game::ui::CharacterCustomizationState> * GetCustomizationState(game::ui::CharacterCustomizationSystem * self)
 {
-    return reinterpret_cast<Handle<game::ui::CharacterCustomizationState> *>((uintptr_t)self + 0x78);
+    // 2.31a exe audit: self+0x78 is reflection-opaque and the class grew
+    // 0x388->0x398 in 2.31 (growth position vs 0x78 unknown), so this offset is a
+    // genuine drift RISK. A drifted 0x78 yields a garbage-but-non-null instance
+    // that passes a bare null-check and CTDs on the first appearance serialize.
+    // Gate it with RTTI: instance+refCount must be non-null AND the pointed-to
+    // object must really be a CharacterCustomizationState (a drifted offset lands
+    // on a different member whose type will not match). Bail to nullptr on failure.
+    auto * h = reinterpret_cast<Handle<game::ui::CharacterCustomizationState> *>((uintptr_t)self + 0x78);
+    if (!h->instance || !h->refCount ||
+        !h->instance->GetType()->IsA(GetClass<game::ui::CharacterCustomizationState>()))
+    {
+        spdlog::error("CCS state handle drift: self+0x78 instance={} type={}",
+            fmt::ptr(h->instance),
+            h->instance ? h->instance->GetType()->GetName().ToString() : "null");
+        return nullptr;
+    }
+    return h;
 }

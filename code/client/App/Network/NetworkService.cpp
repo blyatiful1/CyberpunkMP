@@ -87,9 +87,13 @@ void NetworkService::HandleAuthentication(const PacketEvent<server::Authenticati
     client::SpawnCharacterRequest request;
     request.set_is_player(true);
 
-    const auto system = Red::GetGameSystem<Game::PlayerSystem>();
     Red::Handle<Red::GameObject> player;
-    system->GetLocalPlayerControlledGameObject(player);
+    // 2.31a exe audit: the hand-declared vtable slot for
+    // GetLocalPlayerControlledGameObject drifted (the fake virtuals in
+    // PlayerSystem.h landed the call at +0x138 instead of the RE'd +0x1E0).
+    // Dispatch by name through RTTI reflection instead, which is immune to
+    // vtable-slot layout drift (same pattern as AppearanceSystem GetPlayerItems).
+    Red::CallVirtual(Red::GetGameSystem<Game::PlayerSystem>(), "GetLocalPlayerControlledGameObject", player);
 
     const auto& cEntityPosition = player->transformComponent->localTransform.Position;
     const auto cEntityRotation = Game::ToGlm(player->transformComponent->localTransform.Orientation);

@@ -250,11 +250,17 @@ void VehicleSystem::DoMount(flecs::entity aCharacter, Red::EntityID aVehicle, Re
         static Core::RawFunc<4039776020UL, void (*)(Red::vehicle::BaseObject*, bool)> SetIsPlayerControlled;
         static Core::RawFunc<1620777158UL, void (*)(Red::vehicle::BaseObject*, uint32_t)> SetFlags;
         static Core::RawFunc<1585713002UL, void (*)(Red::vehicle::BaseObject*, bool)> SetKinematic;
+        // 2.31a exe audit: the raw vtable +0x328 call drifted (slot 101 is now an
+        // entityID+hash query returning bool, not the engine toggle). The real
+        // TurnEngineOn(WheeledBaseObject*, bool) moved to slot 133; bind it by reloc
+        // hash instead so it self-validates against the address DB at load and is
+        // immune to further ordinal drift. RVA 0x3573A4 -> hash 3718582823.
+        static Core::RawFunc<3718582823UL, void (*)(Red::vehicle::WheeledBaseObject*, bool)> TurnEngineOn;
 
         // AttachLocomotionController(component, controller);
         SetIsPlayerControlled(vehicle, false);
         // turn on engine
-        reinterpret_cast<void (*)(Red::vehicle::WheeledBaseObject*, bool)>(*(uintptr_t*)(*(uintptr_t*)vehicle.instance + 0x328))(vehicle, true);
+        TurnEngineOn(vehicle, true);
         vehicle->engineData->unk61 = 0;
         SetFlags(vehicle, 0x10);
         SetFlags(vehicle, 0x80);
