@@ -19,8 +19,19 @@ struct TypeProxyMapping : public std::false_type {};
 
 namespace Detail
 {
+// Oracle-diagnosed M3 blocker (upstream red-lib carries this exact fix): the old
+// disjunction rejected nameof::cstring (its operator const char* is EXPLICIT and
+// it is not std::string_view), so HasTypeNameBuilder was false for EVERY
+// RTTI_DEFINE_CLASS type — the declared name was silently discarded and name
+// resolution fell through to the INHERITED T::NAME of SDK generated bases.
+// Classes deriving from red::Event / game::IGameSystem therefore registered
+// themselves as "redEvent"/"gameIGameSystem", corrupting the engine's own RTTI
+// entries (self-parented classes, poisoned nativeToScript) and failing script
+// validation on 2.31a. Binary-proven: the shipped DLL contained the compiler-
+// generated string "GetGameIGameSystem" which exists nowhere in source.
 template<typename T>
-concept IsTypeNameConst = std::is_convertible_v<T, const char*> || std::is_same_v<T, std::string_view>;
+concept IsTypeNameConst =
+    std::is_same_v<std::remove_cvref_t<T>, const char*> || std::is_convertible_v<T, std::string_view>;
 
 template<typename T>
 concept HasGeneratedTypeName = requires(T*)
@@ -156,15 +167,19 @@ consteval auto GetTypeNameStr()
     {
         constexpr auto name = Detail::ResolveTypeNameBuilder<U>();
 
-        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(name)>, std::string_view>)
-        {
-            return Detail::MakeConstStr<name.size()>(name.data());
-        }
-        else
+        // Inverted vs the 2024 fork (mirrors upstream red-lib): special-case the
+        // raw const char* and let everything with size()/data() — std::string_view
+        // AND nameof::cstring — take the generic branch, instead of assuming
+        // anything that is not string_view converts to const char*.
+        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(name)>, const char*>)
         {
             constexpr auto length = std::char_traits<char>::length(name);
 
             return Detail::MakeConstStr<length>(name);
+        }
+        else
+        {
+            return Detail::MakeConstStr<name.size()>(name.data());
         }
     }
     else if constexpr (Detail::HasTypeNameMapping<U>)
