@@ -511,8 +511,14 @@ public:
             auto rtti = CRTTISystem::Get();
             if (rtti->scriptToNative.Get(aAlias) == nullptr)
             {
-                rtti->scriptToNative.Insert(aAlias, name);
-                rtti->nativeToScript.Insert(name, aAlias);
+                // 2.31a script validation: inserting into the engine-owned alias
+                // HashMaps directly can rehash/reorder them mid-registration and
+                // lose the engine's own entries (empirically on 2.31a: exactly
+                // Event<->redEvent and IGameSystem<->gameIGameSystem vanished,
+                // producing 8 ValidateScripts errors and killing the game before
+                // the menu). RegisterScriptName is the engine's API for this and
+                // maintains both maps itself.
+                rtti->RegisterScriptName(name, aAlias);
             }
         }
     }
@@ -940,10 +946,20 @@ struct SystemBuilder
         constexpr auto getterNameStr = Detail::ConcatConstStr<3, systemNameStr.size() - 1>("Get", systemNameStr.data());
 
         auto gameType = GetClass<ScriptGameInstance>();
-        auto getterFunc = CClassStaticFunction::Create(gameType, getterNameStr.data(), getterNameStr.data(), &ScriptGetter);
+        // 2.31a script validation: the engine ctor receives all-zero flags by
+        // default, so the getter was not recognized as a static native and
+        // ValidateScripts reported "Missing native function 'Get<System>' in
+        // native class 'GameInstance'". Mark it native+static+public like the
+        // game's own static natives, and route through RegisterFunction so the
+        // static/instance array choice follows the flags.
+        CBaseFunction::Flags flags{};
+        flags.isNative = true;
+        flags.isStatic = true;
+        flags.isPublic = true;
+        auto getterFunc = CClassStaticFunction::Create(gameType, getterNameStr.data(), getterNameStr.data(), &ScriptGetter, flags);
         getterFunc->SetReturnType(CNamePool::Add(systemRefStr.data()));
 
-        gameType->staticFuncs.PushBack(getterFunc);
+        gameType->RegisterFunction(getterFunc);
     }
 
     static inline void RegisterSystem()
