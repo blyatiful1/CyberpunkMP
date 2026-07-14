@@ -68,6 +68,9 @@
 #include <RED4ext/Scripting/Natives/Generated/world/IRuntimeSystem.hpp>
 #include <RED4ext/Scripting/Natives/Generated/game/ITeleportationFacility.hpp>
 #include <RED4ext/Scripting/Natives/Generated/ent/EntityID.hpp>
+// The 2.31 SDK's entEntity.hpp only forward-declares IPlacedComponent; several
+// TUs dereference entity->transformComponent, so the PCH supplies the full type.
+#include <RED4ext/Scripting/Natives/Generated/ent/IPlacedComponent.hpp>
 #include <RED4ext/Scripting/Natives/ScriptGameInstance.hpp>
 
 #include <nameof.hpp>
