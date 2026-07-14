@@ -321,7 +321,20 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
     {
         const auto cEntityPosition = puppet->transformComponent->localTransform.Position;
         const auto cEntityRotation = eulerAngles(Game::ToGlm(puppet->transformComponent->worldTransform.Orientation));
-        float speed = puppet->moveComponent->speed.Magnitude();
+        // moveComponent sits at a fork-RE offset (0x420) that upstream reflection
+        // cannot corroborate (offset-audit: UNVERIFIABLE-STATIC). Cross-check the raw
+        // member against the reflection-safe lookup once per session; on drift report
+        // speed 0 instead of dereferencing a garbage pointer.
+        static const bool cMoveComponentOffsetSane = [&] {
+            const auto viaRtti = Game::FindComponent<Red::move::Component>(puppet.instance);
+            const bool sane = puppet->moveComponent.instance != nullptr && puppet->moveComponent.instance == viaRtti.instance;
+            if (!sane)
+                spdlog::error("gamePuppet.moveComponent@0x420 failed the reflection cross-check (raw={}, rtti={}); "
+                              "speed sync disabled",
+                              fmt::ptr(puppet->moveComponent.instance), fmt::ptr(viaRtti.instance));
+            return sane;
+        }();
+        const float speed = cMoveComponentOffsetSane ? puppet->moveComponent->speed.Magnitude() : 0.f;
 
         common::Vector3 pos;
         pos.set_x(cEntityPosition.x);

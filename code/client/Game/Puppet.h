@@ -52,7 +52,11 @@ struct ExPuppet : Red::game::Puppet
     virtual void sub_210();
     virtual void Teleport(const TeleportArg&);
 
-    uint8_t pad268[0x420 - 0x268];
-    Red::Handle<Red::move::Component> m_moveComponent;
+    // NOTE: no data members here on purpose. The SDK's game::Puppet already declares
+    // moveComponent@0x420 (ASSERT_SIZE 0x5F8 / ASSERT_OFFSET-guarded in entPuppet.hpp).
+    // This struct used to re-declare pad268 + m_moveComponent, but appended to the
+    // complete 0x5F8 base they landed at 0x7B0 — past the real allocation. The member
+    // was never read, but any future use would have been a silent heap-overflow read.
 };
+static_assert(sizeof(ExPuppet) == sizeof(Red::game::Puppet), "ExPuppet must add no data members: it overlays game's own gamePuppet allocation");
 }

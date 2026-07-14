@@ -153,8 +153,26 @@ float MultiMovementController::GetAnimLength(Red::CName aName) const
 
 void MultiMovementController::Reset()
 {
-    m_pComponent->representation.stack.Clear();
-    m_pComponent->representation.activeIndex = -1;
-    m_pComponent->representation.activeEntry = nullptr;
-    m_pComponent->representation.active = false;
+    // representation@0x138 is a fork-RE native member that upstream reflection cannot
+    // corroborate (offset-audit: UNVERIFIABLE-STATIC). Sanity-check the block before
+    // writing through it: if the offset drifted on this game build these fields will
+    // not self-reference, and skipping the reset only stalls animation state, while a
+    // blind write would corrupt unrelated puppet memory.
+    auto& rep = m_pComponent->representation;
+    const bool cRepresentationSane = rep.parent == m_pComponent && rep.activeIndex >= -1 &&
+                                     rep.activeIndex <= static_cast<int32_t>(rep.stack.size) &&
+                                     rep.stack.size <= rep.stack.capacity &&
+                                     (rep.stack.size == 0 || rep.stack.entries != nullptr);
+    if (!cRepresentationSane)
+    {
+        spdlog::error("move::Component.representation@0x138 failed sanity check (parent={}, component={}, "
+                      "activeIndex={}, stack={}/{}) — offset drift on this game build; skipping reset",
+                      fmt::ptr(rep.parent), fmt::ptr(m_pComponent), rep.activeIndex, rep.stack.size,
+                      rep.stack.capacity);
+        return;
+    }
+    rep.stack.Clear();
+    rep.activeIndex = -1;
+    rep.activeEntry = nullptr;
+    rep.active = false;
 }
