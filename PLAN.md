@@ -110,6 +110,13 @@ Plan reviewed by plan-critic (2026-07-12): PROCEED-WITH-FIXES — all fixes fold
   before exit instead of exit-time destructors).
 - **Debug recipe:** managed exceptions crossing reverse-P/Invoke die as opaque PAL_SEHException +
   terminate on .NET 9; rerun with DOTNET_LegacyExceptionHandling=1 to get the real C# stack printed.
+- **Windows CI scoped to client chain (2026-07-14):** `xmake -y Client Archives Inputs Tweaks redscript`.
+  Reason: Server.Scripting's SdkGenerator (CppSharp 1.1.5, 2024) silently generates NOTHING on 2026
+  windows-latest (VS toolchain unsupported; ran 24s, exit 0, no CyberpunkSdk.Internal.cs → CS0234
+  cascade). Bindings are gitignored, not committed. Server coverage lives in linux CI (green).
+  Revisit only if a windows-hosted server is ever needed (not our path — we host on linux, friend
+  needs client only). Fix directions if needed: bump CppSharp / pin VS toolset / print codegen
+  stdout via os.iorunv (currently swallowed by os.runv).
 - **Offset audit (wf_d17e2fe7-de3, 2026-07-12): ALL Rendering.h offsets CONFIRMED for 2.31a** by disassembly
   of the real exe (0xC97F38 via `lea rsi,[r11+0xc97f38]` in ResizeBackbuffer; stride 0xB0; pDirectQueue@0x13BC4D0
   = ID3D12CommandQueue::Signal; hash 2468877568 → RVA 0x21C5AC via shipped bin/x64/cyberpunk2077_addresses.json;
