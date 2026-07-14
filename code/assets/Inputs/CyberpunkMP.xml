@@ -10,6 +10,9 @@
 	<blend from="UI_EmoteSelection" to="__ANY__" event="BUTTON_RELEASE_IF_TO_DOESNT_CONTAIN" />
 
 	<mapping name="UIConnectToServer_Button" type="Button" >
+		<!-- IK_IntlBackslash = the dedicated <> key on ISO layouts (German QWERTZ);
+		     IK_Slash needs Shift+7 there, kept as secondary for ANSI keyboards. -->
+		<button id="IK_IntlBackslash" />
 		<button id="IK_Slash" />
     </mapping>
 
