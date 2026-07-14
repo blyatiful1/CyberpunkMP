@@ -75,9 +75,14 @@ Plan reviewed by plan-critic (2026-07-12): PROCEED-WITH-FIXES — all fixes fold
         server-boot-m2.log. LAUNCH ENV REQUIRED: DOTNET_ROLL_FORWARD=LatestMajor +
         CYBERPUNKMP_ADMIN_USERNAME + CYBERPUNKMP_ADMIN_PASSWORD (WebApi.cs:108 throws SecurityException
         without them → PAL_SEHException kills process on first Update tick).
-- [ ] M3  Runtime stack + mod installed into real game; launches on 2.31a; red4ext log lists CyberpunkMP;
-        menu reachable; one run with `-online` arg. PRECONDITION: static offset audit + redscript gate green.
-- [ ] M4  In-game client connects to local server (server log session).
+- [x] M3  2026-07-15 ~23:00 (visual confirm by user pending): game launches on 2.31a with full stack,
+        ZERO validation errors (was 9+), mod initializes, process stable 7min, one clean `-online` run.
+        ROOT CAUSE was fork red-lib's IsTypeNameConst rejecting nameof::cstring → classes registered
+        under their SDK base's engine name (gameIGameSystem/redEvent), corrupting engine RTTI. Fixed in
+        Resolving.hpp (upstream hunks); proven by oracle + in-game probe + binary strings + static_asserts.
+- [~] M4  Server+client both run with -online args wired; connection is triggered by the in-game
+        Multiplayer menu action ("Connect to server", MultiplayerGameController.reds:415) — ONE user
+        click tomorrow. Watch server log for "Authorize connection from ...".
 - [ ] M5  (stretch, next sessions) Friend connects remotely: port-forward/WAN or VPN, friend install kit,
         matching game patch. Owns the user's actual goal — must be planned before declaring victory overall.
 
@@ -144,6 +149,21 @@ Plan reviewed by plan-critic (2026-07-12): PROCEED-WITH-FIXES — all fixes fold
 - **CI baseline (run 29209014800): all third-party packages now build on windows-latest** (xmake 3.0.9,
   no vs_sdkver pin); failure moved into first-party code: netpack helpers.h uses protobuf-removed
   `EffectiveStringCType` (Phase 2 fix: port helpers.h to new protobuf API or pin protobuf-cpp version).
+
+## M3 state 2026-07-14 evening — runtime installed, one blocker
+- Runtime stack + mod INSTALLED in the real game (hash-verified, zero collisions; Heroic env +
+  native d3dcompiler_47 wired; config backup: 1423049311.json.bak-cyberpunkmp).
+- Launch result: RED4ext + all 5 plugins load on 2.31a under wine 11.12; scc compiles (25890 refs);
+  render hooks survive. BLOCKER: RED4ext ValidateScripts — 9 errors, game exits before menu.
+- EXPERIMENTALLY ISOLATED (2 user launches): stack w/o our plugin = CLEAN; our DLL with ZERO .reds
+  = 9 hierarchy errors (Event family 3, IGameSystem family 6). ⇒ our DLL's RTTI registrations alone
+  corrupt the Event/IGameSystem hierarchy. Mechanism hypothesis: client's bundled 2024 red-lib
+  resolves parent classes by SHORT alias name ('Event', 'IGameSystem'); 2.31 real classes are
+  redEvent/gameIGameSystem (short names = script aliases); old red-lib auto-creates bogus parents.
+  Codeware 1.20.3 (current red-lib) on same install = fine, so upstream has the fix.
+  Root-cause workflow: wf_a598104d-d2e → ~/cp2077-audit/m3-experiment/rtti-diagnosis.md.
+- Fix loop cost: client DLL changes need a windows CI round (~5.5 min now) + reinstall + user launch.
+- start-server.sh added (env recipe baked in). CI: ALL GREEN both platforms as of c6c158e.
 
 ## SHUTDOWN STATE 2026-07-12 (~23:55) — resume here tomorrow
 - **Phase 1 (SDK port): COMPLETE.** Submodule vendor/RED4ext.SDK = df23758c ("Port tiltedphoques CyberpunkMP
