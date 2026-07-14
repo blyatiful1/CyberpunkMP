@@ -165,16 +165,16 @@ void AddItems(Red::Handle<Red::game::Object> & object, Red::DynArray<Red::TweakD
 
 bool AppearanceSystem::ApplyAppearance(Red::Handle<Red::game::Object> object)
 {
-    if (m_playerCcstate.find(object.instance->id) == m_playerCcstate.end()) 
+    if (m_playerCcstate.find(object.instance->entityID) == m_playerCcstate.end()) 
     {
         // not our entity
         return false;
     }
 
-    auto bytes = m_playerCcstate[object.instance->id];
+    auto bytes = m_playerCcstate[object.instance->entityID];
     if (bytes.size() == 0) 
     {
-        spdlog::info("no bytes for {}", object->id.hash);
+        spdlog::info("no bytes for {}", object->entityID.hash);
         return false;
     }
 
@@ -199,7 +199,7 @@ bool AppearanceSystem::ApplyAppearance(Red::Handle<Red::game::Object> object)
     // Red::CallVirtual(this, "AddItems", object);
 
     // c++ method
-    auto items = m_playerEquipment[object.instance->id];
+    auto items = m_playerEquipment[object.instance->entityID];
     // if (stateHandle.instance->isBodyGenderMale) {
     //     // items.PushBack("Items.PlayerMaTppHead");
     //     items.PushBack("Items.MuppetMaHead");

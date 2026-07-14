@@ -215,7 +215,7 @@ void HookIdleController_SetAnimation(Game::Controller* apController, AnimationDa
             if (apController->m_type == MultiMovementController::kMulti)
                 return;
 
-            ThreadService::RunInMainThread([id = pOwner->id, pMoveComponent, apController]
+            ThreadService::RunInMainThread([id = pOwner->entityID, pMoveComponent, apController]
             {
                 const auto pSystem = Red::GetGameSystem<NetworkWorldSystem>();
                 const auto entityQuery = pSystem->query<const EntityComponent>();

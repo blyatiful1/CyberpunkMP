@@ -239,7 +239,7 @@ void VehicleSystem::DoMount(flecs::entity aCharacter, Red::EntityID aVehicle, Re
     const auto handle = Red::Handle(this);
     bool res;
 
-    Red::Detail::CallFunctionWithArgs(m_pEnterVehicle, handle, res, character, vehicle->id, aSit);
+    Red::Detail::CallFunctionWithArgs(m_pEnterVehicle, handle, res, character, vehicle->entityID, aSit);
 
     aCharacter.add<AttachedComponent>();
 

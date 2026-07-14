@@ -268,7 +268,7 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
 
             transform = vehicle->rigidBody->currentTransform;
 
-            // const auto cEntityRotation = eulerAngles(Game::ToGlm(vehicle->placedComponent->worldTransform.Orientation));
+            // const auto cEntityRotation = eulerAngles(Game::ToGlm(vehicle->transformComponent->worldTransform.Orientation));
 
             // about the same
             // transform = vehicle->worldTransform;
@@ -281,7 +281,7 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
             // auto transform = Red::WorldTransform();
             // const auto moveSystem = Red::GetGameSystem<Red::vehicle::MoveSystem>();
             // // GetCurrentTransform
-            // reinterpret_cast<void (*)(const Red::vehicle::MoveSystem *, const Red::EntityID &, Red::WorldTransform*)>(*(uintptr_t*)(*(uintptr_t*)moveSystem + 0x250))(moveSystem, vehicle->id, &transform);
+            // reinterpret_cast<void (*)(const Red::vehicle::MoveSystem *, const Red::EntityID &, Red::WorldTransform*)>(*(uintptr_t*)(*(uintptr_t*)moveSystem + 0x250))(moveSystem, vehicle->entityID, &transform);
 
             const auto cEntityPosition = transform.Position;
             const auto cEntityRotation = eulerAngles(Game::ToGlm(transform.Orientation));
@@ -319,8 +319,8 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
     }
     else
     {
-        const auto cEntityPosition = puppet->placedComponent->localTransform.Position;
-        const auto cEntityRotation = eulerAngles(Game::ToGlm(puppet->placedComponent->worldTransform.Orientation));
+        const auto cEntityPosition = puppet->transformComponent->localTransform.Position;
+        const auto cEntityRotation = eulerAngles(Game::ToGlm(puppet->transformComponent->worldTransform.Orientation));
         float speed = puppet->moveComponent->speed.Magnitude();
 
         common::Vector3 pos;
@@ -341,10 +341,10 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
 
     // if (GetEntityByServerId(*GetRemotePlayerId()).get_mut<InterpolationComponent>()->Attached)
     // {
-    //     auto vehicle_id = GetVehicleSystem()->GetVehicle(player->id);
+    //     auto vehicle_id = GetVehicleSystem()->GetVehicle(player->entityID);
     //     if (!vehicle_id)
     //     {
-    //         spdlog::warn("No vehicle for player({})", player->id.hash);
+    //         spdlog::warn("No vehicle for player({})", player->entityID.hash);
     //         return;
     //     }
     //     auto entity = GetEntity(vehicle_id);
@@ -361,8 +361,8 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
     //     }
     //     else
     //     {
-    //         // if (vehicle->placedComponent) {
-    //             // entityPosition = vehicle->placedComponent->localTransform.Position;
+    //         // if (vehicle->transformComponent) {
+    //             // entityPosition = vehicle->transformComponent->localTransform.Position;
     //         // } else {
     //             // entityPosition = vehicle->worldTransform.Position;
     //             entityPosition = vehicle->rigidBody->worldPosition;
