@@ -4,6 +4,9 @@
 #include "Game/Utils.h"
 #include "RED4ext/Scripting/Natives/Generated/Vector4.hpp"
 #include "RED4ext/Scripting/Natives/Generated/game/Object.hpp"
+// The 2.31 SDK's entEntity.hpp only forward-declares IPlacedComponent; the
+// transformComponent->localTransform reads below need the complete type.
+#include "RED4ext/Scripting/Natives/Generated/ent/IPlacedComponent.hpp"
 #include "App/World/AppearanceSystem.h"
 #include "Game/CharacterCustomizationSystem.h"
 
