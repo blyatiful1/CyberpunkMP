@@ -195,6 +195,13 @@ void InterpolationSystem::HandleNotifyEntityMove(const PacketEvent<server::Notif
 
     auto* pInterpolation = entity.get_mut<InterpolationComponent>();
 
+    // flecs v4: get_mut returns nullptr when the component is absent (v3 added
+    // it). Between Spawn() and the puppet finishing its engine-side spawn the
+    // entity only carries SpawningComponent, so movement packets arriving in
+    // that window (a moving player during join) must be dropped, not deref'd.
+    if (!pInterpolation)
+        return;
+
     if (!pInterpolation->TimePoints.empty() && pInterpolation->TimePoints.back().Tick > aMessage.get_tick())
         return;
 
