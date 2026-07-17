@@ -53,7 +53,8 @@ Vector<String> AppearanceSystem::GetPlayerItems(Red::Handle<Red::GameObject> pla
         // stripped): debug-name strings are empty without a name database.
         const uint64_t value = item.value & 0xFFFFFFFFFFull;
         spdlog::info("Getting: {}", value);
-        equipment.push_back(std::to_string(value));
+        const auto str = std::to_string(value);
+        equipment.push_back(String(str.c_str(), str.size()));
     }
     return equipment;
 }
