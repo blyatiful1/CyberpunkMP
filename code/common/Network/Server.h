@@ -72,6 +72,11 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_lastClockSyncTime;
     std::chrono::time_point<std::chrono::high_resolution_clock> m_lastUpdateTime;
     std::chrono::time_point<std::chrono::high_resolution_clock> m_currentTick;
+    // Tick origin. On Linux high_resolution_clock is system_clock (unix epoch),
+    // so absolute epoch ticks are ~1.75e12 ms — beyond float's 24-bit mantissa,
+    // which snaps client-side interpolation time to ~131s steps and freezes all
+    // remote movement. Ticks are therefore server-start-relative (small).
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
     std::chrono::milliseconds m_timeBetweenUpdates;
 
     uint64_t m_clientIdentifier;

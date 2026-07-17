@@ -54,6 +54,18 @@ void MultiMovementController::Tick(float delta)
 void MultiMovementController::GetDeltaTransform(Red::Vector4& positionDelta, Red::Quaternion& rotationDelta)
 {
     MOVEDIAG_SLOT("GetDeltaTransform");
+
+    // MOVEDIAG: current-vs-target — if `cur` converges toward a moving
+    // `target` across these samples, the engine is actually displacing the
+    // puppet (visual motion proven without a screen).
+    static uint32_t s_deltaCount = 0;
+    if (++s_deltaCount % 300 == 1)
+    {
+        const glm::vec3 curLog = Game::ToGlm(m_pComponent->owner->transformComponent->localTransform.Position);
+        spdlog::info("[MOVEDIAG] delta #{} cur=({}, {}, {}) target=({}, {}, {})", s_deltaCount, curLog.x, curLog.y,
+                     curLog.z, m_position.X, m_position.Y, m_position.Z);
+    }
+
     const auto& rawPosition = m_pComponent->owner->transformComponent->localTransform.Position;
     const auto& rawRotation = m_pComponent->owner->transformComponent->localTransform.Orientation;
     const glm::vec3 pos = Game::ToGlm(rawPosition);

@@ -20,6 +20,7 @@ Server::Server(uint64_t aClientIdentifier, uint64_t aServerIdentifier) noexcept
     , m_lastUpdateTime(0ns)
     , m_timeBetweenUpdates(100ms)
     , m_lastClockSyncTime(0ns)
+    , m_startTime(std::chrono::high_resolution_clock::now())
     , m_clientIdentifier(aClientIdentifier)
     , m_serverIdentifier(aServerIdentifier)
 {
@@ -198,7 +199,10 @@ uint32_t Server::GetTickRate() const noexcept
 
 uint64_t Server::GetTick() const noexcept
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(m_currentTick.time_since_epoch()).count();
+    // Server-start-relative, NOT time_since_epoch(): on Linux this clock is
+    // unix-epoch-based and epoch-scale millisecond ticks exceed float's
+    // mantissa, freezing client-side interpolation (see m_startTime).
+    return std::chrono::duration_cast<std::chrono::milliseconds>(m_currentTick - m_startTime).count();
 }
 
 SteamNetConnectionInfo_t Server::GetConnectionInfo(ConnectionId aConnectionId) const noexcept

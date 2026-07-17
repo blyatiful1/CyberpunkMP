@@ -37,7 +37,13 @@ inline void SetSimpleMovement(Red::vehicle::IMoveSystem* apMoveSystem, const Red
 
 void InterpolateEntity(flecs::entity aEntity, const EntityComponent& aEntityComponent, InterpolationComponent& aInterpolation, float aSimulationDelay, Red::vehicle::IMoveSystem* apMoveSystem)
 {
-    const float tick = NetworkWorldSystem::GetTick() - aSimulationDelay;
+    // double, NOT float: ticks are absolute milliseconds. A float mantissa
+    // (24 bits) snaps epoch-scale ticks (~1.75e12 from a unix-clock server) to
+    // ~131-second steps, so `tick > future.Tick` stays false for minutes and
+    // every remote puppet freezes on its first received position. double is
+    // exact to 2^53 ms. (The server now also sends small start-relative ticks;
+    // this guards against any other server implementation.)
+    const double tick = static_cast<double>(NetworkWorldSystem::GetTick()) - aSimulationDelay;
 
     while (!aInterpolation.TimePoints.empty())
     {
