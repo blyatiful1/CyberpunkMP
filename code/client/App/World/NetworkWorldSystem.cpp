@@ -354,6 +354,12 @@ void NetworkWorldSystem::UpdatePlayerLocation() const
 
         const auto pNetworkService = Core::Container::Get<NetworkService>();
         pNetworkService->Send(request);
+
+        // MOVEDIAG: send-side proof that on-foot positions leave this client.
+        static uint32_t s_sendCount = 0;
+        if (++s_sendCount % 100 == 1)
+            spdlog::info("[MOVEDIAG] sent move #{} pos=({}, {}, {}) speed={}", s_sendCount, pos.get_x(), pos.get_y(),
+                         pos.get_z(), speed);
     }
 
     // if (GetEntityByServerId(*GetRemotePlayerId()).get_mut<InterpolationComponent>()->Attached)
@@ -461,6 +467,12 @@ void NetworkWorldSystem::OnConnected()
                  aEntity.emplace<EntityComponent>(aSpawning.Id, false, aSpawning.Controller);
                  aEntity.remove<SpawningComponent>();
                  pOwner->tags.Add("CyberpunkMP.Puppet");
+
+                 // MOVEDIAG: spawn completion — from here the puppet is tagged, so
+                 // the NEXT idle-animation event can attach its movement controller
+                 // (Controller carried over from SpawningComponent: {} = none yet).
+                 spdlog::info("[MOVEDIAG] spawn complete id={} controller-carried={}", aSpawning.Id.hash,
+                              aSpawning.Controller != nullptr);
             }
         });
 

@@ -10,6 +10,16 @@
 
 Core::RawFunc<316482401, void (*)(Red::AnimationControllerComponent* AnimationController, Red::CName Name, Red::Handle<Red::anim::AnimFeature> Feature)> ApplyFeature;
 
+// MOVEDIAG: the controller vtable below mirrors a 2.2-era RE of the engine's
+// idle-controller interface; on 2.31a the engine may dispatch into different
+// slots. Log the first call the engine makes into each slot so a frozen-puppet
+// session shows exactly which parts of the interface are (not) being driven.
+#define MOVEDIAG_SLOT(name)                                                                                            \
+    {                                                                                                                  \
+        static std::once_flag s_diagFlag;                                                                              \
+        std::call_once(s_diagFlag, [] { spdlog::info("[MOVEDIAG] engine first-call: {}", name); });                    \
+    }
+
 RED4ext::Memory::PoolAI_Movement* MultiMovementController::GetMemoryPool()
 {
     return RED4ext::Memory::PoolAI_Movement::Get();
@@ -19,10 +29,18 @@ MultiMovementController::~MultiMovementController() = default;
 
 void MultiMovementController::PreTick(float delta)
 {
+    MOVEDIAG_SLOT("PreTick");
 }
 
 void MultiMovementController::Tick(float delta)
 {
+    MOVEDIAG_SLOT("Tick");
+
+    static uint32_t s_tickCount = 0;
+    if (++s_tickCount % 300 == 1)
+        spdlog::info("[MOVEDIAG] Tick #{} speed={} target=({}, {}, {})", s_tickCount, m_speed, m_position.X,
+                     m_position.Y, m_position.Z);
+
     States::Base::Update update;
     update.Delta = delta;
     update.Speed = m_speed;
@@ -35,6 +53,7 @@ void MultiMovementController::Tick(float delta)
 
 void MultiMovementController::GetDeltaTransform(Red::Vector4& positionDelta, Red::Quaternion& rotationDelta)
 {
+    MOVEDIAG_SLOT("GetDeltaTransform");
     const auto& rawPosition = m_pComponent->owner->transformComponent->localTransform.Position;
     const auto& rawRotation = m_pComponent->owner->transformComponent->localTransform.Orientation;
     const glm::vec3 pos = Game::ToGlm(rawPosition);
@@ -51,21 +70,25 @@ void MultiMovementController::GetDeltaTransform(Red::Vector4& positionDelta, Red
 
 void MultiMovementController::sub_28(bool& unk)
 {
+    MOVEDIAG_SLOT("sub_28");
     unk = false;
 }
 
 void MultiMovementController::sub_30(Red::Vector4& positionDelta, Red::Quaternion& rotationDelta)
 {
+    MOVEDIAG_SLOT("sub_30");
     
 }
 
 void MultiMovementController::sub_38(Red::Vector4& position, Red::Quaternion& rotation, bool& unk1, bool& unk2)
 {
+    MOVEDIAG_SLOT("sub_38");
     
 }
 
 void MultiMovementController::SendAnimationParameters(float delta, Red::Vector4& position, Red::Quaternion& orientation)
 {
+    MOVEDIAG_SLOT("SendAnimationParameters");
     AnimationData data;
     data.controller = GetName();
 
@@ -76,11 +99,13 @@ void MultiMovementController::SendAnimationParameters(float delta, Red::Vector4&
 
 void MultiMovementController::sub_48(RED4ext::Vector4& somePosition1, RED4ext::Quaternion& someRotation1, RED4ext::Vector4& somePosition2, RED4ext::Quaternion& someRotation2)
 {
+    MOVEDIAG_SLOT("sub_48");
     
 }
 
 void MultiMovementController::sub_50(RED4ext::Vector4& somePosition1, RED4ext::Quaternion& someRotation1, float unk, RED4ext::Vector4& somePosition2, RED4ext::Quaternion& someRotation2)
 {
+    MOVEDIAG_SLOT("sub_50");
     
 }
 
@@ -91,26 +116,31 @@ Red::CName MultiMovementController::GetName() const
 
 bool MultiMovementController::sub_60()
 {
+    MOVEDIAG_SLOT("sub_60");
     return true;
 }
 
 void MultiMovementController::sub_68()
 {
+    MOVEDIAG_SLOT("sub_68");
     
 }
 
 void MultiMovementController::sub_70()
 {
+    MOVEDIAG_SLOT("sub_70");
     
 }
 
 void MultiMovementController::Mount(RED4ext::move::Component& movable, Red::Handle<Red::ent::Entity> owner)
 {
+    MOVEDIAG_SLOT("Mount");
     
 }
 
 void MultiMovementController::Attach(Red::move::Component& movable)
 {
+    MOVEDIAG_SLOT("Attach");
     m_pComponent = &movable;
 
     const auto& pos = movable.owner->transformComponent->localTransform.Position;
@@ -127,6 +157,7 @@ void MultiMovementController::Attach(Red::move::Component& movable)
 
 void MultiMovementController::Detach(Red::move::Component& movable)
 {
+    MOVEDIAG_SLOT("Detach");
     m_animationDriver.Detach();
 
     m_pState.reset();
@@ -136,6 +167,7 @@ void MultiMovementController::Detach(Red::move::Component& movable)
 
 void MultiMovementController::GetAnimationParameters(AnimationData& animationData)
 {
+    MOVEDIAG_SLOT("GetAnimationParameters");
     m_pState->GetAnimationData(animationData);
 }
 
