@@ -17,7 +17,7 @@ struct AppearanceSystem : RED4ext::IScriptable
     void OnInitialize(const RED4ext::JobHandle& aJob);
 
     Red::DynArray<Red::TweakDBID> GetEntityItems(Red::EntityID &);
-    void AddEntity(const Red::EntityID entityID, const Red::DynArray<Red::TweakDBID>& items, const Vector<uint8_t> ccstate);
+    void AddEntity(const Red::EntityID entityID, const Red::DynArray<Red::TweakDBID>& items, const Vector<uint8_t> ccstate, const String& name);
     Vector<String> GetPlayerItems(Red::Handle<Red::GameObject> player);
     bool ApplyAppearance(Red::Handle<Red::GameObject> object);
 
@@ -27,6 +27,7 @@ struct AppearanceSystem : RED4ext::IScriptable
 private:
     Core::Map<Red::EntityID, Red::DynArray<Red::TweakDBID>> m_playerEquipment;
     Core::Map<Red::EntityID, Vector<uint8_t>> m_playerCcstate;
+    Core::Map<Red::EntityID, String> m_playerNames;
 };
 
 RTTI_DEFINE_CLASS(AppearanceSystem, { 

@@ -31,7 +31,7 @@ NetworkWorldSystem::NetworkWorldSystem()
     set_entity_range(10'000'000, 20'000'000);
 }
 
-bool NetworkWorldSystem::Spawn(uint64_t aServerId, const Red::Vector4& aPosition, const Red::Quaternion& aRotation, const Red::DynArray<Red::TweakDBID>& aEquipment, const Vector<uint8_t> aCcstate)
+bool NetworkWorldSystem::Spawn(uint64_t aServerId, const Red::Vector4& aPosition, const Red::Quaternion& aRotation, const Red::DynArray<Red::TweakDBID>& aEquipment, const Vector<uint8_t> aCcstate, const String& aName)
 {
     if (!m_ready)
         return false;
@@ -50,7 +50,7 @@ bool NetworkWorldSystem::Spawn(uint64_t aServerId, const Red::Vector4& aPosition
         return false;
 
     auto apprSystem = Red::GetGameSystem<NetworkWorldSystem>()->GetAppearanceSystem();
-    apprSystem->AddEntity(id, aEquipment, aCcstate);
+    apprSystem->AddEntity(id, aEquipment, aCcstate, aName);
 
     if (!id.IsDynamic())
         return false;
@@ -204,14 +204,34 @@ void NetworkWorldSystem::HandleCharacterLoad(const PacketEvent<server::NotifyCha
     const Red::Quaternion rotation{quat.x, quat.y, quat.z, quat.w};
 
     auto equipment = Red::DynArray<Red::TweakDBID>(this->GetAllocator());
-    for (auto item : aMessage.get_equipment())
+    for (const auto& item : aMessage.get_equipment())
     {
-        equipment.EmplaceBack(item);
+        if (item.empty())
+            continue;
+
+        // Preferred wire format: decimal TweakDBID value; a non-numeric entry
+        // is a legacy debug-name string, hash it like before.
+        uint64_t value = 0;
+        bool numeric = true;
+        for (const char c : item)
+        {
+            if (c < '0' || c > '9')
+            {
+                numeric = false;
+                break;
+            }
+            value = value * 10 + static_cast<uint64_t>(c - '0');
+        }
+
+        if (numeric)
+            equipment.EmplaceBack(Red::TweakDBID(value));
+        else
+            equipment.EmplaceBack(item);
     }
 
     auto ccstate = aMessage.get_ccstate();
 
-    Spawn(aMessage.get_id(), position, rotation, equipment, ccstate);
+    Spawn(aMessage.get_id(), position, rotation, equipment, ccstate, aMessage.get_name());
 }
 
 void NetworkWorldSystem::HandleEntityUnload(const PacketEvent<server::NotifyEntityUnload>& aMessage)

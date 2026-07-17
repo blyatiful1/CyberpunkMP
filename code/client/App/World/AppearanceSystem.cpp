@@ -45,21 +45,25 @@ Red::DynArray<Red::TweakDBID> AppearanceSystem::GetEntityItems(Red::EntityID & e
 Vector<String> AppearanceSystem::GetPlayerItems(Red::Handle<Red::GameObject> player)
 {
     auto equipment = Vector<String>();
-    Red::DynArray<Red::CString> items;
+    Red::DynArray<Red::TweakDBID> items;
     Red::CallVirtual(this, "GetPlayerItems", items);
     for (auto item : items)
     {
-        spdlog::info("Getting: {}", item.c_str());
-        equipment.push_back(item.c_str());
+        // Wire format is the decimal TweakDBID value (hash+length, tdb offset
+        // stripped): debug-name strings are empty without a name database.
+        const uint64_t value = item.value & 0xFFFFFFFFFFull;
+        spdlog::info("Getting: {}", value);
+        equipment.push_back(std::to_string(value));
     }
     return equipment;
 }
 
-void AppearanceSystem::AddEntity(const Red::EntityID entityID, const Red::DynArray<Red::TweakDBID>& items, const Vector<uint8_t> ccstate)
+void AppearanceSystem::AddEntity(const Red::EntityID entityID, const Red::DynArray<Red::TweakDBID>& items, const Vector<uint8_t> ccstate, const String& name)
 {
-    spdlog::info("Logging Entity Appearance: {}", entityID.hash);
+    spdlog::info("Logging Entity Appearance: {} ({} items, name '{}')", entityID.hash, items.size, name.c_str());
     m_playerEquipment[entityID] = items;
     m_playerCcstate[entityID] = ccstate;
+    m_playerNames[entityID] = name;
 }
 
 void AddItems(Red::Handle<Red::game::Object> & object, Red::DynArray<Red::TweakDBID> const & items, game::ui::CharacterCustomizationState const * state)
@@ -178,7 +182,9 @@ bool AppearanceSystem::ApplyAppearance(Red::Handle<Red::game::Object> object)
         return false;
     }
 
-    object.instance->displayName.unk08 = Red::CString("Test");
+    const auto nameIt = m_playerNames.find(object.instance->entityID);
+    const bool hasName = nameIt != m_playerNames.end() && !nameIt->second.empty();
+    object.instance->displayName.unk08 = Red::CString(hasName ? nameIt->second.c_str() : "Player");
 
     spdlog::info("Loaded bytes: {}", bytes.size());
 

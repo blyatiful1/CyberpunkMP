@@ -74,9 +74,11 @@ public native class AppearanceSystem extends IScriptable {
         }
     }
 
-    private func GetPlayerItems() -> array<String> {
+    // Returns raw TweakDBIDs: TDBID.ToStringDEBUG is empty without a name
+    // database, so names must never round-trip over the wire.
+    private func GetPlayerItems() -> array<TweakDBID> {
         let player = GetPlayer(GetGameInstance());
-        let items: array<String>;
+        let items: array<TweakDBID>;
         let equipData: ref<EquipmentSystemPlayerData> = EquipmentSystem.GetData(player);
         let equipAreas: array<SEquipArea>;
         if IsDefined(equipData) {
@@ -87,11 +89,17 @@ public native class AppearanceSystem extends IScriptable {
             let item = equipData.GetVisualItemInSlot(equipAreas[i].areaType);
             let tdbid = ItemID.GetTDBID(item);
             if TDBID.IsValid(tdbid) {
-                let str = TDBID.ToStringDEBUG(ItemID.GetTDBID(item));
-                LogChannel(n"DEBUG", "Getting: " + str);
-                ArrayPush(items, str);
+                ArrayPush(items, tdbid);
             }
             i += 1;
+        }
+        let transactionSystem = GameInstance.GetTransactionSystem(GetGameInstance());
+        let weapon = transactionSystem.GetItemInSlot(player, t"AttachmentSlots.WeaponRight");
+        if IsDefined(weapon) {
+            let weaponId = ItemID.GetTDBID(weapon.GetItemID());
+            if TDBID.IsValid(weaponId) && !ArrayContains(items, weaponId) {
+                ArrayPush(items, weaponId);
+            }
         }
         return items;
     }

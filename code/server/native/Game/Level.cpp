@@ -382,6 +382,12 @@ server::NotifyCharacterLoad Level::Serialize(flecs::entity aEntity) noexcept
         message.set_ccstate(pAppearanceComponent->ccstate);
     }
 
+    if (const auto parent = aEntity.parent())
+    {
+        if (const auto* pPlayerComponent = parent.get<PlayerComponent>())
+            message.set_name(pPlayerComponent->Username.c_str());
+    }
+
     message.set_id(aEntity);
 
     return message;

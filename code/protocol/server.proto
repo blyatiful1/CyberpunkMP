@@ -26,6 +26,7 @@ message NotifyCharacterLoad {
     bool is_player = 4;
     repeated string equipment = 5;
     bytes ccstate = 6;
+    string name = 7;
 }
 
 message NotifyVehicleLoad {
