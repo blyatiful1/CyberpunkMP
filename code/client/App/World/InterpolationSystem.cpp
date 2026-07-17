@@ -78,8 +78,6 @@ void InterpolateEntity(flecs::entity aEntity, const EntityComponent& aEntityComp
 
     const glm::vec3 position{Lerp(first.Position, second.Position, ratio)};
 
-    static uint32_t s_applyNull = 0, s_applyOk = 0;
-
     if (aEntityComponent.IsVehicle)
     {
         const auto pSystem = Red::GetGameSystem<NetworkWorldSystem>();
@@ -130,19 +128,7 @@ void InterpolateEntity(flecs::entity aEntity, const EntityComponent& aEntityComp
             const auto pos = Red::Vector4{position.x, position.y, position.z, 0.f};
             aEntityComponent.Controller->SetTransform(pos, direction, speed);
 
-            // MOVEDIAG: apply-side proof that interpolation reaches the controller.
-            if (++s_applyOk % 300 == 1)
-                spdlog::info("[MOVEDIAG] SetTransform #{} id={} pos=({}, {}, {}) speed={}", s_applyOk,
-                             aEntityComponent.Id.hash, pos.X, pos.Y, pos.Z, speed);
-
             aInterpolation.PreviousFrame = InterpolationComponent::Timepoint{position, glm::vec3{0.f, 0.f, direction}, speed, static_cast<uint64_t>(tick)};
-        }
-        else if (++s_applyNull % 300 == 1)
-        {
-            // MOVEDIAG: timepoints exist but no controller was ever attached —
-            // the IdleController hook/attach path is the broken link.
-            spdlog::warn("[MOVEDIAG] interpolating id={} but Controller is NULL (#{})", aEntityComponent.Id.hash,
-                         s_applyNull);
         }
     }
 }
@@ -225,12 +211,6 @@ void InterpolationSystem::HandleNotifyEntityMove(const PacketEvent<server::Notif
     if (!pInterpolation->TimePoints.empty() && pInterpolation->TimePoints.back().Tick > aMessage.get_tick())
         return;
 
-    // MOVEDIAG: receive-side proof that move packets arrive and are queued.
-    static uint32_t s_recvCount = 0;
-    if (++s_recvCount % 100 == 1)
-        spdlog::info("[MOVEDIAG] recv move #{} id={} pos=({}, {}, {}) speed={}", s_recvCount, aMessage.get_id(),
-                     position.x, position.y, position.z, aMessage.get_speed());
-
     pInterpolation->TimePoints.push_back(InterpolationComponent::Timepoint{position, rotation, aMessage.get_speed(), aMessage.get_tick()});
 }
 
@@ -239,11 +219,6 @@ static Core::RawFunc<4018412273UL, float (*)(Red::move::Component*, MultiMovemen
 void (*RealIdleController_SetAnimation)(Game::Controller*, AnimationData&);
 void HookIdleController_SetAnimation(Game::Controller* apController, AnimationData& data)
 {
-    // MOVEDIAG: proves the IdleController_SetAnimation hook target (hash
-    // 2268141838) still resolves and fires on this game build at all.
-    static std::once_flag s_hookAlive;
-    std::call_once(s_hookAlive, [] { spdlog::info("[MOVEDIAG] IdleController hook alive"); });
-
     auto* pMoveComponent = apController->MoveComponent;
 
     // 2.31a exe audit: ent::IComponent::owner is at moveComponent+0x50
@@ -282,12 +257,6 @@ void HookIdleController_SetAnimation(Game::Controller* apController, AnimationDa
             if (apController->m_type == MultiMovementController::kMulti)
                 return;
 
-            // MOVEDIAG: a tagged puppet reached the idle-controller hook; the
-            // attach below is the ONLY place remote puppets gain a movement
-            // controller — if this line is missing from a frozen-puppet log,
-            // the hook/tag race is the broken link.
-            spdlog::info("[MOVEDIAG] hook: attaching MultiMovementController to puppet {}", pOwner->entityID.hash);
-
             ThreadService::RunInMainThread([id = pOwner->entityID, pMoveComponent, apController]
             {
                 const auto pSystem = Red::GetGameSystem<NetworkWorldSystem>();
@@ -300,7 +269,6 @@ void HookIdleController_SetAnimation(Game::Controller* apController, AnimationDa
                 if (flecsEntity)
                 {
                     flecsEntity.get_mut<EntityComponent>()->Controller = pController;
-                    spdlog::info("[MOVEDIAG] hook: controller stored on EntityComponent {}", id.hash);
                 }
                 else
                 {
@@ -309,13 +277,6 @@ void HookIdleController_SetAnimation(Game::Controller* apController, AnimationDa
                     if (flecsEntity)
                     {
                         flecsEntity.get_mut<SpawningComponent>()->Controller = pController;
-                        spdlog::info("[MOVEDIAG] hook: controller stored on SpawningComponent {}", id.hash);
-                    }
-                    else
-                    {
-                        // MOVEDIAG: controller attached engine-side but no flecs
-                        // entity to remember it — interpolation will never see it.
-                        spdlog::warn("[MOVEDIAG] hook: no flecs entity for puppet {} — controller orphaned", id.hash);
                     }
                 }
             });
