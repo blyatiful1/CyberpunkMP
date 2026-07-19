@@ -109,7 +109,16 @@ namespace JobSystem
 
         ~Taxi()
         {
-            CancelJob();
+            // An exception escaping a finalizer kills the entire server
+            // process — this fires for players who already disconnected.
+            try
+            {
+                CancelJob();
+            }
+            catch (Exception e)
+            {
+                logger.Warn($"CancelJob during finalize failed for {Id}: {e.Message}");
+            }
         }
 
         public override void Update(float delta)
