@@ -48,6 +48,9 @@ public class MultiplayerGameController extends inkGameController {
     private let m_connectedToServerCallback: ref<CallbackHandle>;
     private let m_activeJob: Bool = false;
     private let m_activeDelivery: Bool = false;
+    // Debounce so press + hold-complete of one keystroke connect only once;
+    // key release re-arms.
+    private let m_connectRequested: Bool = false;
     // public let m_textInput: ref<TextInput>;
 
     protected cb func OnInitialize() -> Bool {
@@ -131,6 +134,22 @@ public class MultiplayerGameController extends inkGameController {
     protected cb func OnPositionAnimationFinish(anim: ref<inkAnimProxy>) -> Bool {
         this.m_startupAnimProxy.UnregisterFromAllCallbacks(inkanimEventType.OnFinish);
         this.m_phoneIconWidget.SetVisible(true);
+        this.ShowOnScreenMessage("CyberpunkMP ready - press F7 (or the <> / # key) to connect", 10.0);
+    }
+
+    // On-screen fallback for FTLog (nothing captures script logs on this install).
+    // GetGameInstance() so it works even if m_player failed to resolve; the
+    // audio cue is an independent second channel in case the message widget
+    // doesn't render plain strings.
+    private final func ShowOnScreenMessage(text: String, duration: Float) -> Void {
+        let msg: SimpleScreenMessage;
+        msg.isShown = true;
+        msg.duration = duration;
+        msg.message = text;
+        GameInstance.GetBlackboardSystem(GetGameInstance())
+            .Get(GetAllBlackboardDefs().UI_Notifications)
+            .SetVariant(GetAllBlackboardDefs().UI_Notifications.OnscreenMessage, ToVariant(msg), true);
+        GameInstance.GetAudioSystem(GetGameInstance()).Play(n"ui_phone_incoming_call_positive");
     }
 
     private cb func OnActivatePhoneElements(element: Uint32) -> Bool {
@@ -237,6 +256,10 @@ public class MultiplayerGameController extends inkGameController {
     protected func OnConnectedToServer(connected: Bool) -> Void {
         FTLog(s"[MultiplayerGameController] OnConnectedToServer");
         this.m_connectedToServer = connected;
+        // Re-arm the connect debounce here too: a successful connect
+        // unregisters the listener before BUTTON_RELEASED can arrive, which
+        // would otherwise leave the flag stuck true for the next session.
+        this.m_connectRequested = false;
         if (connected) {
             this.ShowServerList(false);
             this.AsyncSpawnFromLocal(this.GetWidget(n"hud"), n"chat");
@@ -955,9 +978,20 @@ public class MultiplayerGameController extends inkGameController {
         let actionType: gameinputActionType = ListenerAction.GetType(action);
         if !this.m_connectedToServer {
             if !this.m_serverListOpen {
-                if Equals(actionName, n"UIConnectToServer") && Equals(actionType, gameinputActionType.BUTTON_HOLD_COMPLETE) {
-                    // this.ShowServerList(true);
-                    GameInstance.GetNetworkWorldSystem().Connect();
+                if Equals(actionName, n"UIConnectToServer") {
+                    if Equals(actionType, gameinputActionType.BUTTON_RELEASED) {
+                        this.m_connectRequested = false;
+                    }
+                    // Trigger on press OR hold-complete — whichever the engine
+                    // emits for this hold-decorated action arrives first wins.
+                    if Equals(actionType, gameinputActionType.BUTTON_PRESSED) || Equals(actionType, gameinputActionType.BUTTON_HOLD_COMPLETE) {
+                        if !this.m_connectRequested {
+                            this.m_connectRequested = true;
+                            // this.ShowServerList(true);
+                            this.ShowOnScreenMessage("CyberpunkMP: connecting to server...", 6.0);
+                            GameInstance.GetNetworkWorldSystem().Connect();
+                        }
+                    }
                     return true;
                 } else {
                     return false;

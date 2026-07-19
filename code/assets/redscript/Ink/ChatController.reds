@@ -16,6 +16,10 @@ public class ChatController extends inkHUDGameController {
     private let m_chatInputOpen: Bool;
     private let m_input: wref<inkTextInput>;
     private let m_lastMessageData: ref<ChatMessageData>;
+    private let m_connected: Bool;
+    private let m_connectedBBId: ref<CallbackHandle>;
+    private let m_hideGeneration: Int32;
+    private let m_fadeProxy: ref<inkAnimProxy>;
 
     protected cb func OnInitialize() -> Bool {
         FTLog(s"[ChatController] OnInitialize");
@@ -27,25 +31,69 @@ public class ChatController extends inkHUDGameController {
         this.m_messageController = inkWidgetRef.GetController(this.m_messagesRef) as ListController;
         this.m_input = inkWidgetRef.Get(this.m_inputRef) as inkTextInput;
         this.m_player.RegisterInputListener(this, n"UIEnterChatMessage");
-        // get last messages & populate list
 
         this.UpdateInputHints();
 
-        let messageData = new ChatMessageUIEvent();
-        messageData.author = "SERVER";
-        messageData.message = "Connected to...";
-        this.QueueEvent(messageData);
+        // The chat panel is part of the always-loaded HUD layer: keep it hidden
+        // until we are actually connected, and let it fade out when idle.
+        let blackboard = GameInstance.GetBlackboardSystem(GetGameInstance()).Get(GetAllBlackboardDefs().UIGameData);
+        this.m_connected = blackboard.GetBool(GetAllBlackboardDefs().UIGameData.UIMultiplayerConnectedToServer);
+        this.m_connectedBBId = blackboard.RegisterListenerBool(GetAllBlackboardDefs().UIGameData.UIMultiplayerConnectedToServer, this, n"OnConnectionStateChanged");
+        this.GetRootWidget().SetVisible(this.m_connected);
     }
 
     protected cb func OnUninitialize() -> Bool {
         FTLog(s"[ChatController] OnUninitialize");
         this.m_player.UnregisterInputListener(this, n"UIEnterChatMessage");
+        let blackboard = GameInstance.GetBlackboardSystem(GetGameInstance()).Get(GetAllBlackboardDefs().UIGameData);
+        blackboard.UnregisterListenerBool(GetAllBlackboardDefs().UIGameData.UIMultiplayerConnectedToServer, this.m_connectedBBId);
+    }
+
+    protected cb func OnConnectionStateChanged(value: Bool) -> Bool {
+        this.m_connected = value;
+        this.GetRootWidget().SetVisible(value);
+        if value {
+            this.WakeChat();
+        } else {
+            if this.m_chatInputOpen {
+                this.ShowChatInput(false);
+            }
+        }
+        this.UpdateInputHints();
+    }
+
+    // Show the chat panel at full opacity and schedule it to fade once idle.
+    private func WakeChat() -> Void {
+        this.m_hideGeneration += 1;
+        if IsDefined(this.m_fadeProxy) && this.m_fadeProxy.IsPlaying() {
+            this.m_fadeProxy.Stop();
+        }
+        this.GetRootWidget().SetOpacity(1.0);
+        let cb = new ChatFadeCallback();
+        cb.m_controller = this;
+        cb.m_generation = this.m_hideGeneration;
+        GameInstance.GetDelaySystem(GetGameInstance()).DelayCallback(cb, 10.0, false);
+    }
+
+    public func OnFadeTimeout(generation: Int32) -> Void {
+        // A newer wake (message/typing) supersedes this fade.
+        if generation != this.m_hideGeneration || this.m_chatInputOpen || !this.m_connected {
+            return;
+        }
+        let anim = new inkAnimDef();
+        let interp = new inkAnimTransparency();
+        interp.SetStartTransparency(1.0);
+        interp.SetEndTransparency(0.0);
+        interp.SetDuration(0.8);
+        interp.SetType(inkanimInterpolationType.Linear);
+        anim.AddInterpolator(interp);
+        this.m_fadeProxy = this.GetRootWidget().PlayAnimation(anim);
     }
 
     private func UpdateInputHints() -> Void {
         let evt = new UpdateInputHintMultipleEvent();
         evt.targetHintContainer = n"GameplayInputHelper";
-        evt.AddInputHint(CreateInputHint(n"Chat", n"UIEnterChatMessage", false), !this.m_chatInputOpen);
+        evt.AddInputHint(CreateInputHint(n"Chat", n"UIEnterChatMessage", false), this.m_connected && !this.m_chatInputOpen);
         evt.AddInputHint(CreateInputHint(n"Cancel", n"back", false), this.m_chatInputOpen);
         evt.AddInputHint(CreateInputHint(n"Send", n"EnterChat", false), this.m_chatInputOpen);
         evt.AddInputHint(CreateInputHint(n"Scroll up", n"navigate_up", false), this.m_chatInputOpen);
@@ -67,6 +115,7 @@ public class ChatController extends inkHUDGameController {
             messageData.m_needsAuthorLabel = true;
         }
         this.m_lastMessageData = messageData;
+        this.WakeChat();
         inkScrollAreaRef.ScrollVertical(this.m_scrollRef, 0.0);
         this.m_messageController.PushData(messageData, true);
 
@@ -118,6 +167,7 @@ public class ChatController extends inkHUDGameController {
             this.RequestSetFocus(null);
         }
         this.m_chatInputOpen = show;
+        this.WakeChat();
         this.UpdateInputHints();
     }
 
@@ -205,6 +255,10 @@ public class ChatController extends inkHUDGameController {
         let actionName: CName = ListenerAction.GetName(action);
         let actionType: gameinputActionType = ListenerAction.GetType(action);
 
+        if !this.m_connected {
+            return false;
+        }
+
         if !this.m_chatInputOpen {
             if Equals(actionName, n"UIEnterChatMessage") && Equals(actionType, gameinputActionType.BUTTON_RELEASED) {
                 // let targets = new inkWidgetsSet();
@@ -217,6 +271,17 @@ public class ChatController extends inkHUDGameController {
             }
         } else {
             return this.OnChatInputAction(action, consumer);
+        }
+    }
+}
+
+public class ChatFadeCallback extends DelayCallback {
+    public let m_controller: wref<ChatController>;
+    public let m_generation: Int32;
+
+    public func Call() -> Void {
+        if IsDefined(this.m_controller) {
+            this.m_controller.OnFadeTimeout(this.m_generation);
         }
     }
 }

@@ -10,8 +10,12 @@
 	<blend from="UI_EmoteSelection" to="__ANY__" event="BUTTON_RELEASE_IF_TO_DOESNT_CONTAIN" />
 
 	<mapping name="UIConnectToServer_Button" type="Button" >
-		<!-- IK_IntlBackslash = the dedicated <> key on ISO layouts (German QWERTZ);
-		     IK_Slash needs Shift+7 there, kept as secondary for ANSI keyboards. -->
+		<!-- German-QWERTZ-friendly: F7 is layout-proof and unbound in vanilla
+		     (F9 is QuickLoad — do not use). IK_IntlBackslash = the dedicated <>
+		     key on ISO layouts; IK_Slash (VK_OEM_2) sits on '#' for German
+		     boards. Connect/disconnect share keys — only one is registered at
+		     a time based on connection state. -->
+		<button id="IK_F7" />
 		<button id="IK_IntlBackslash" />
 		<button id="IK_Slash" />
     </mapping>
@@ -29,11 +33,15 @@
     </mapping>
 	
 	<mapping name="UIDisconnectFromServer_Button" type="Button" >
+		<button id="IK_F7" />
+		<button id="IK_IntlBackslash" />
 		<button id="IK_Slash" />
     </mapping>
 
+	<!-- F6: layout-proof and unbound in vanilla; IK_Semicolon (VK_OEM_1) lands
+	     on an umlaut key on German QWERTZ. -->
 	<mapping name="UIEnterChatMessage_Button" type="Button" >
-		<button id="IK_Semicolon" />
+		<button id="IK_F6" />
     </mapping>
 
 	<mapping name="ChatTop_Button" type="Button" >
